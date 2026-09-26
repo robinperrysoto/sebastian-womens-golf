@@ -1,0 +1,12 @@
+'use client';
+import {useEffect,useState} from 'react';
+import {browserClient} from '@/lib/supabase/browser';
+import {Button} from '@/components/ui/button';
+import {Input} from '@/components/ui/input';
+export default function Login(){
+ const [email,setEmail]=useState(''),[password,setPassword]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
+ useEffect(()=>{const q=new URLSearchParams(location.search);if(q.has('access'))setMessage('Your account does not have active administrator access. Ask the league owner to check your account.');else if(q.has('link'))setMessage('This link has expired or is invalid. Request a new password-reset link or invitation.');},[]);
+ async function login(e:React.FormEvent){e.preventDefault();setBusy(true);setMessage('');try{const {error}=await browserClient().auth.signInWithPassword({email,password});if(error)throw Error('Email or password not recognized. Please try again.');location.assign('/');}catch(error){setMessage(error instanceof Error?error.message:'Unable to sign in.');}finally{setBusy(false);}}
+ async function reset(){if(!email.trim()){setMessage('Enter your email address first.');return;}setBusy(true);try{const {error}=await browserClient().auth.resetPasswordForEmail(email,{redirectTo:`${location.origin}/account`});if(error)throw error;setMessage('If this email has an account, a password-reset link will arrive shortly.');}catch{setMessage('A reset email could not be requested. Please try again later.');}finally{setBusy(false);}}
+ return <main className="auth-screen"><section className="panel auth-card"><span className="brand-mark">S</span><div className="eyebrow">SEBASTIAN LADIES GOLF LEAGUE</div><h1>Administrator sign-in</h1><p>Use the email and password for your league account.</p><form className="edit-form" onSubmit={login}><label>Email<Input type="email" required autoComplete="username" value={email} onChange={e=>setEmail(e.target.value)}/></label><label>Password<Input type="password" required autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)}/></label><Button disabled={busy} type="submit">{busy?'Please wait…':'Sign in'}</Button></form><Button variant="link" disabled={busy} onClick={reset}>Forgot password?</Button>{message&&<p className="auth-message" role="status">{message}</p>}<p className="microcopy">Access is by invitation from the league owner. If you are signed in but cannot open the league, ask the owner to check your access.</p></section></main>;
+}
