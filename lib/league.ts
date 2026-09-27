@@ -1,7 +1,7 @@
 export type Player = { id: string; name: string; ghin: string; index: number | null; email: string; phone: string; active: boolean };
 export type Participant = { playerId: string; index: number; courseHandicap: number; playingHandicap: number; gross: number | null; holes: (number | null)[] };
 export type Group = { id: string; playerIds: string[]; locked: boolean };
-export type Round = { id: string; season: string; date: string; firstTime: string; interval: number; attendees: string[]; groups: Group[]; participants: Participant[]; course?: Course; status: "draft" | "paired" | "completed" };
+export type Round = { id: string; season: string; date: string; firstTime: string; interval: number; instructions?: string; attendees: string[]; groups: Group[]; participants: Participant[]; course?: Course; status: "draft" | "paired" | "completed" };
 export type Course = { name: string; rating: number; slope: number; par: number[]; strokeIndex: number[]; allowance: number };
 export type League = { season: string; seasons: string[]; players: Player[]; rounds: Round[]; course: Course };
 export const newId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2,12)}`;

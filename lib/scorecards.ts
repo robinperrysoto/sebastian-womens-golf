@@ -1,5 +1,5 @@
 import { PDFDocument, StandardFonts, rgb, type PDFPage, type PDFFont } from 'pdf-lib';
-import { strokesOnHole, timeFor, type League, type Round } from './league';
+import { strokesOnHole, timeFor, type League, type Round } from './league.ts';
 
 // The PDF is created on demand from the saved round. No league records change.
 export async function createScorecardsPdf(league: League, round: Round) {
@@ -18,7 +18,13 @@ export async function createScorecardsPdf(league: League, round: Round) {
     page.drawText(valueSafe,{x,y,size,font,color:green});
   };
   const line=(page:PDFPage,x1:number,y1:number,x2:number,y2:number)=>page.drawLine({start:{x:x1,y:y1},end:{x:x2,y:y2},thickness:.5,color:rule});
+  const wrap=(value:string,font:PDFFont,size:number,maxWidth:number,maxLines:number)=>{
+    const words=clean(value).replace(/\s+/g,' ').trim().split(' ').filter(Boolean),lines:string[]=[];
+    for(const word of words){const current=lines.at(-1);const candidate=current?`${current} ${word}`:word;if(current&&font.widthOfTextAtSize(candidate,size)>maxWidth){if(lines.length===maxLines){lines[maxLines-1]=`${lines[maxLines-1].replace(/…$/,'')}…`;break;}lines.push(word);}else if(current)lines[lines.length-1]=candidate;else lines.push(word);}
+    return lines.slice(0,maxLines);
+  };
   const date=new Date(`${round.date}T12:00:00Z`).toLocaleDateString('en-US',{timeZone:'UTC',weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  const instructions=round.instructions?.trim()??'';
   document.setTitle(`Sebastian Ladies Scorecards - ${round.date}`);
   document.setAuthor('Sebastian Ladies Golf League');
   let sheet=document.addPage([792,612]);
@@ -43,10 +49,12 @@ export async function createScorecardsPdf(league: League, round: Round) {
       text(page,`${round.date}  |  ${round.season??league.season}  |  Red tees`,24,top-31,9);
       text(page,`GROUP ${index+1}  -  ${timeFor(round.firstTime,round.interval,index)}`,560,top-16,12,bold);
       text(page,'CH = course handicap   PH = playing handicap',490,top-31,9);
+      const instructionLines=instructions?wrap(instructions,regular,7.5,680,2):[];
+      if(instructionLines.length){text(page,'EVENT:',24,top-45,7.5,bold);instructionLines.forEach((value,lineIndex)=>text(page,value,57,top-45-lineIndex*9,7.5));}
       // One front/back row for every player. Each cell has room for a written score.
       const widths=[172,...Array(9).fill(47),48,48,53];
       const xs=[24]; widths.forEach(w=>xs.push(xs[xs.length-1]+w));
-      let gridTop=top-42;
+      let gridTop=top-(instructionLines.length>1?65:instructionLines.length?55:42);
       for(let nine=0;nine<2;nine++){
         const headerHeight=23,rowHeight=20;
         const bottom=gridTop-headerHeight-4*rowHeight;
@@ -72,7 +80,7 @@ export async function createScorecardsPdf(league: League, round: Round) {
         line(page,24,gridTop,768,gridTop);line(page,24,gridTop-headerHeight,768,gridTop-headerHeight);
         gridTop=bottom-5;
       }
-      text(page,'Dots = strokes received. Enter gross and net totals in the BACK NINE row for each player.',24,top-266,7);
+      text(page,'Dots = strokes received. Enter gross and net totals in the BACK NINE row for each player.',24,top-280,7);
     };
     card(592);card(292);
     page.drawLine({start:{x:24,y:306},end:{x:768,y:306},thickness:.5,color:gray,dashArray:[4,4]});
