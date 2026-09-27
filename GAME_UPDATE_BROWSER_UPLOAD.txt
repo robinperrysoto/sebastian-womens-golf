@@ -1,0 +1,11 @@
+SEBASTIAN WOMEN'S GOLF — GAME UPDATE
+
+This ZIP keeps the repository folder structure intact.
+
+1. Open robinperrysoto/sebastian-womens-golf on GitHub.
+2. Choose Add file, then Upload files.
+3. Drag the contents of this ZIP onto the upload page. Keep the app, lib, and tests folders intact.
+4. Commit directly to main with the message: Add weekly game formats
+5. Wait for Vercel to finish the automatic deployment, then reload the permanent app address.
+
+No Supabase migration or new environment variable is required. Existing events remain Individual net.

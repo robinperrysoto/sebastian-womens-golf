@@ -6,112 +6,2072 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { CalendarDays, Users, Shuffle, Printer, Plus, LockKeyhole, LockKeyholeOpen, Pencil, RotateCcw, Check, ChevronRight, Settings2, Trophy, Table2, Save } from "lucide-react";
-import { initialLeague, courseHandicap, playingHandicap, makeGroups, strokesOnHole, timeFor, totalPar, newId, type League, type Player, type Round, type Participant } from "@/lib/league";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  CalendarDays,
+  Users,
+  Shuffle,
+  Printer,
+  Plus,
+  LockKeyhole,
+  LockKeyholeOpen,
+  Pencil,
+  RotateCcw,
+  Check,
+  ChevronRight,
+  Settings2,
+  Trophy,
+  Table2,
+  Save,
+} from "lucide-react";
+import {
+  initialLeague,
+  courseHandicap,
+  playingHandicap,
+  makeGroups,
+  strokesOnHole,
+  timeFor,
+  totalPar,
+  newId,
+  type League,
+  type Player,
+  type Round,
+  type Participant,
+  type GameType,
+} from "@/lib/league";
+import {
+  GAME_LABELS,
+  countingHoles,
+  gameLabel,
+  gameType,
+  scoreRound,
+} from "@/lib/games";
 
-const nextTuesday = () => { const today=new Intl.DateTimeFormat("en-CA",{timeZone:"America/New_York",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()); const [year,month,day]=today.split("-").map(Number); const utc=new Date(Date.UTC(year,month-1,day)); utc.setUTCDate(utc.getUTCDate()+((2-utc.getUTCDay()+7)%7)); return utc.toISOString().slice(0,10); };
-const prettyDate = (date:string) => date ? new Date(`${date}T12:00:00`).toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"}) : "";
-const byName=(a:Player,b:Player)=>a.name.localeCompare(b.name);
-const emptyPlayer=():Player=>({id:newId(),name:"",ghin:"",index:null,email:"",phone:"",active:true});
-const initialRound=(season:string):Round=>({id:newId(),season,date:nextTuesday(),firstTime:"07:32",interval:10,instructions:"",attendees:[],groups:[],participants:[],status:"draft"});
+const nextTuesday = () => {
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+  const [year, month, day] = today.split("-").map(Number);
+  const utc = new Date(Date.UTC(year, month - 1, day));
+  utc.setUTCDate(utc.getUTCDate() + ((2 - utc.getUTCDay() + 7) % 7));
+  return utc.toISOString().slice(0, 10);
+};
+const prettyDate = (date: string) =>
+  date
+    ? new Date(`${date}T12:00:00`).toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "";
+const byName = (a: Player, b: Player) => a.name.localeCompare(b.name);
+const emptyPlayer = (): Player => ({
+  id: newId(),
+  name: "",
+  ghin: "",
+  index: null,
+  email: "",
+  phone: "",
+  active: true,
+});
+const initialRound = (season: string): Round => ({
+  id: newId(),
+  season,
+  date: nextTuesday(),
+  firstTime: "07:32",
+  interval: 10,
+  instructions: "",
+  game: { type: "individual-net" },
+  attendees: [],
+  groups: [],
+  participants: [],
+  status: "draft",
+});
 
 export default function Home() {
-  const [account,setAccount]=useState<{email:string;role:string}|null>(null);
-  useEffect(()=>{fetch("/api/session").then(async res=>{if(res.ok)setAccount(await res.json());else if(res.status===401)location.assign("/login");}).catch(()=>{});},[]);
-  const [league,setLeague]=useState<League|null>(null);
-  const [version,setVersion]=useState(0);
-  const [busy,setBusy]=useState(false);
-  const [error,setError]=useState("");
-  const [notice,setNotice]=useState("");
-  const [tab,setTab]=useState("round");
-  const [roundId,setRoundId]=useState("");
-  const [editPlayer,setEditPlayer]=useState<Player|null>(null);
-  const [courseOpen,setCourseOpen]=useState(false);
-  const [courseDraft,setCourseDraft]=useState(initialLeague.course);
-  const [scoreDraft,setScoreDraft]=useState<Record<string,Participant>>({});
-  const [holeMode,setHoleMode]=useState(false);
-  const [swapSource,setSwapSource]=useState("");
-  const [newSeasonOpen,setNewSeasonOpen]=useState(false);
-  const [newSeasonName,setNewSeasonName]=useState("");
-  useEffect(()=>setScoreDraft({}),[roundId]);
+  const [account, setAccount] = useState<{
+    email: string;
+    role: string;
+  } | null>(null);
+  useEffect(() => {
+    fetch("/api/session")
+      .then(async (res) => {
+        if (res.ok) setAccount(await res.json());
+        else if (res.status === 401) location.assign("/login");
+      })
+      .catch(() => {});
+  }, []);
+  const [league, setLeague] = useState<League | null>(null);
+  const [version, setVersion] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [tab, setTab] = useState("round");
+  const [roundId, setRoundId] = useState("");
+  const [editPlayer, setEditPlayer] = useState<Player | null>(null);
+  const [courseOpen, setCourseOpen] = useState(false);
+  const [courseDraft, setCourseDraft] = useState(initialLeague.course);
+  const [scoreDraft, setScoreDraft] = useState<Record<string, Participant>>({});
+  const [holeMode, setHoleMode] = useState(false);
+  const [swapSource, setSwapSource] = useState("");
+  const [newSeasonOpen, setNewSeasonOpen] = useState(false);
+  const [newSeasonName, setNewSeasonName] = useState("");
+  useEffect(() => setScoreDraft({}), [roundId]);
 
-  useEffect(()=>{ fetch("/api/league",{cache:"no-store"}).then(async res=>{const body=await res.json() as {error?:string;league:League;version:number};if(!res.ok) throw new Error(body.error);body.league.seasons??=[body.league.season];body.league.rounds=body.league.rounds.map(r=>({...r,season:r.season??body.league.season}));setLeague(body.league);setVersion(body.version);const newest=[...body.league.rounds].filter(r=>r.season===body.league.season).sort((a:Round,b:Round)=>b.date.localeCompare(a.date))[0];if(newest)setRoundId(newest.id);}).catch(e=>setError(e.message)); },[]);
-  const seasonRounds=league?.rounds.filter(r=>r.season===league.season)||[];
-  const round=seasonRounds.find(r=>r.id===roundId) ?? null;
-  const players=useMemo(()=>[...(league?.players||[])].sort(byName),[league]);
-  const playerMap=useMemo(()=>new Map(players.map(p=>[p.id,p])),[players]);
-  const completed=seasonRounds.filter(r=>r.status==="completed");
-  const par=league?totalPar(league.course):72;
-  async function save(next:League, message="Saved") {
-    if(busy || !league) return false;
-    setBusy(true);setError("");setNotice("");
-    try { const res=await fetch("/api/league",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({league:next,version})}); const body=await res.json() as {error?:string;version:number}; if(!res.ok) throw new Error(body.error||"Could not save."); setLeague(next);setVersion(body.version);setNotice(message);setTimeout(()=>setNotice(""),3500);return true; }
-    catch(e){setError(e instanceof Error?e.message:"Could not save.");return false;} finally{setBusy(false);}
+  useEffect(() => {
+    fetch("/api/league", { cache: "no-store" })
+      .then(async (res) => {
+        const body = (await res.json()) as {
+          error?: string;
+          league: League;
+          version: number;
+        };
+        if (!res.ok) throw new Error(body.error);
+        body.league.seasons ??= [body.league.season];
+        body.league.rounds = body.league.rounds.map((r) => ({
+          ...r,
+          season: r.season ?? body.league.season,
+        }));
+        setLeague(body.league);
+        setVersion(body.version);
+        const newest = [...body.league.rounds]
+          .filter((r) => r.season === body.league.season)
+          .sort((a: Round, b: Round) => b.date.localeCompare(a.date))[0];
+        if (newest) setRoundId(newest.id);
+      })
+      .catch((e) => setError(e.message));
+  }, []);
+  const seasonRounds =
+    league?.rounds.filter((r) => r.season === league.season) || [];
+  const round = seasonRounds.find((r) => r.id === roundId) ?? null;
+  const players = useMemo(
+    () => [...(league?.players || [])].sort(byName),
+    [league],
+  );
+  const playerMap = useMemo(
+    () => new Map(players.map((p) => [p.id, p])),
+    [players],
+  );
+  const completed = seasonRounds.filter((r) => r.status === "completed");
+  const par = league ? totalPar(league.course) : 72;
+  const selectedGame = round ? gameType(round) : "individual-net";
+  const requiresHoles =
+    selectedGame !== "individual-net" && selectedGame !== "two-round-aggregate";
+  async function save(next: League, message = "Saved") {
+    if (busy || !league) return false;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const res = await fetch("/api/league", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ league: next, version }),
+      });
+      const body = (await res.json()) as { error?: string; version: number };
+      if (!res.ok) throw new Error(body.error || "Could not save.");
+      setLeague(next);
+      setVersion(body.version);
+      setNotice(message);
+      setTimeout(() => setNotice(""), 3500);
+      return true;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not save.");
+      return false;
+    } finally {
+      setBusy(false);
+    }
   }
-  function updateRound(change:(r:Round)=>Round,message?:string) { if(!league||!round)return; void save({...league,rounds:league.rounds.map(r=>r.id===round.id?change(r):r)},message); }
-  const participant=(id:string):Participant=>{const p=playerMap.get(id)!;const idx=p.index??0;const ch=courseHandicap(idx,league!.course);return {playerId:id,index:idx,courseHandicap:ch,playingHandicap:playingHandicap(ch,league!.course),gross:null,holes:Array(18).fill(null)};};
-  function newRound(){if(!league)return;const existing=seasonRounds.find(r=>r.date===nextTuesday());if(existing){setRoundId(existing.id);setTab("round");setNotice("Opened the existing Tuesday round");return;}const r=initialRound(league.season);r.attendees=league.players.filter(p=>p.active).map(p=>p.id);void save({...league,rounds:[...league.rounds,r]},"Round created").then(ok=>{if(ok){setRoundId(r.id);setTab("round");}});}
-  function generate(){if(!league||!round)return;if(round.attendees.length<3){setError("Select at least three players to make a group.");return;}const missing=round.attendees.filter(id=>playerMap.get(id)?.index===null);if(missing.length){setError(`Enter a Handicap Index for ${missing.map(id=>playerMap.get(id)?.name).join(", ")} before printing handicap cards.`);return;}const locked=round.groups.filter(g=>g.locked&&g.playerIds.every(id=>round.attendees.includes(id)));if(round.attendees.length-locked.reduce((sum,g)=>sum+g.playerIds.length,0)<3){setError("Unlock a group so at least three players remain for new pairings.");return;}const other=seasonRounds.filter(r=>r.id!==round.id);const groups=makeGroups(round.attendees,other,locked);updateRound(r=>({...r,groups,course:structuredClone(league.course),participants:r.attendees.map(id=>r.participants.find(p=>p.playerId===id)?.gross!==null&&r.participants.find(p=>p.playerId===id)?.gross!==undefined?r.participants.find(p=>p.playerId===id)!:participant(id)),status:"paired"}),"Pairings generated");}
-  function swap(target:string){if(!league||!round||!swapSource||target===swapSource)return;const sourceGroup=round.groups.find(g=>g.playerIds.includes(swapSource));const targetGroup=round.groups.find(g=>g.playerIds.includes(target));if(!sourceGroup||!targetGroup||sourceGroup.locked||targetGroup.locked)return;updateRound(r=>({...r,groups:r.groups.map(g=>({...g,playerIds:g.playerIds.map(id=>id===swapSource?target:id===target?swapSource:id)}))}),"Players swapped");setSwapSource("");}
-  function openScores(){if(!round)return;setScoreDraft(Object.fromEntries(round.participants.map(p=>[p.playerId,{...p,holes:[...p.holes]}])));setTab("scores");}
-  function saveScores(finalize=false){if(!league||!round)return;const entries=round.attendees.map(id=>scoreDraft[id]??round.participants.find(p=>p.playerId===id)??participant(id));if(finalize&&entries.some(p=>p.gross===null)){setError("Enter a gross score for every player before finalizing.");return;}updateRound(r=>({...r,participants:entries,status:finalize?"completed":r.status}),finalize?"Round finalized":"Scores saved");}
-  const counts=useMemo(()=>{const map=new Map<string,number>();for(const r of seasonRounds)if(r.status!=="draft")for(const g of r.groups)for(let i=0;i<g.playerIds.length;i++)for(let j=i+1;j<g.playerIds.length;j++){const key=[g.playerIds[i],g.playerIds[j]].sort().join("|");map.set(key,(map.get(key)||0)+1)}return map;},[league]);
-  const pairCount=(a:string,b:string)=>counts.get([a,b].sort().join("|"))||0;
+  function updateRound(change: (r: Round) => Round, message?: string) {
+    if (!league || !round) return;
+    void save(
+      {
+        ...league,
+        rounds: league.rounds.map((r) => (r.id === round.id ? change(r) : r)),
+      },
+      message,
+    );
+  }
+  const participant = (id: string): Participant => {
+    const p = playerMap.get(id)!;
+    const idx = p.index ?? 0;
+    const ch = courseHandicap(idx, league!.course);
+    return {
+      playerId: id,
+      index: idx,
+      courseHandicap: ch,
+      playingHandicap: playingHandicap(ch, league!.course),
+      gross: null,
+      holes: Array(18).fill(null),
+    };
+  };
+  function newRound() {
+    if (!league) return;
+    const existing = seasonRounds.find((r) => r.date === nextTuesday());
+    if (existing) {
+      setRoundId(existing.id);
+      setTab("round");
+      setNotice("Opened the existing Tuesday round");
+      return;
+    }
+    const r = initialRound(league.season);
+    r.attendees = league.players.filter((p) => p.active).map((p) => p.id);
+    void save(
+      { ...league, rounds: [...league.rounds, r] },
+      "Round created",
+    ).then((ok) => {
+      if (ok) {
+        setRoundId(r.id);
+        setTab("round");
+      }
+    });
+  }
+  function generate() {
+    if (!league || !round) return;
+    if (round.attendees.length < 3) {
+      setError("Select at least three players to make a group.");
+      return;
+    }
+    const missing = round.attendees.filter(
+      (id) => playerMap.get(id)?.index === null,
+    );
+    if (missing.length) {
+      setError(
+        `Enter a Handicap Index for ${missing.map((id) => playerMap.get(id)?.name).join(", ")} before printing handicap cards.`,
+      );
+      return;
+    }
+    const locked = round.groups.filter(
+      (g) =>
+        g.locked && g.playerIds.every((id) => round.attendees.includes(id)),
+    );
+    if (
+      round.attendees.length -
+        locked.reduce((sum, g) => sum + g.playerIds.length, 0) <
+      3
+    ) {
+      setError(
+        "Unlock a group so at least three players remain for new pairings.",
+      );
+      return;
+    }
+    const other = seasonRounds.filter((r) => r.id !== round.id);
+    const groups = makeGroups(round.attendees, other, locked);
+    updateRound(
+      (r) => ({
+        ...r,
+        groups,
+        course: structuredClone(league.course),
+        participants: r.attendees.map((id) =>
+          r.participants.find((p) => p.playerId === id)?.gross !== null &&
+          r.participants.find((p) => p.playerId === id)?.gross !== undefined
+            ? r.participants.find((p) => p.playerId === id)!
+            : participant(id),
+        ),
+        status: "paired",
+      }),
+      "Pairings generated",
+    );
+  }
+  function swap(target: string) {
+    if (!league || !round || !swapSource || target === swapSource) return;
+    const sourceGroup = round.groups.find((g) =>
+      g.playerIds.includes(swapSource),
+    );
+    const targetGroup = round.groups.find((g) => g.playerIds.includes(target));
+    if (
+      !sourceGroup ||
+      !targetGroup ||
+      sourceGroup.locked ||
+      targetGroup.locked
+    )
+      return;
+    updateRound(
+      (r) => ({
+        ...r,
+        groups: r.groups.map((g) => ({
+          ...g,
+          playerIds: g.playerIds.map((id) =>
+            id === swapSource ? target : id === target ? swapSource : id,
+          ),
+        })),
+      }),
+      "Players swapped",
+    );
+    setSwapSource("");
+  }
+  function openScores() {
+    if (!round) return;
+    setScoreDraft(
+      Object.fromEntries(
+        round.participants.map((p) => [
+          p.playerId,
+          { ...p, holes: [...p.holes] },
+        ]),
+      ),
+    );
+    if (requiresHoles) setHoleMode(true);
+    setTab("scores");
+  }
+  function saveScores(finalize = false) {
+    if (!league || !round) return;
+    const entries = round.attendees.map(
+      (id) =>
+        scoreDraft[id] ??
+        round.participants.find((p) => p.playerId === id) ??
+        participant(id),
+    );
+    const needed =
+      selectedGame === "selected-holes" || selectedGame === "stableford"
+        ? countingHoles(round)
+        : Array.from({ length: 18 }, (_, i) => i);
+    if (
+      finalize &&
+      requiresHoles &&
+      entries.some((p) => needed.some((h) => p.holes[h] === null))
+    ) {
+      setError("Enter every required hole score before finalizing this game.");
+      return;
+    }
+    if (finalize && !requiresHoles && entries.some((p) => p.gross === null)) {
+      setError("Enter a gross score for every player before finalizing.");
+      return;
+    }
+    updateRound(
+      (r) => ({
+        ...r,
+        participants: entries,
+        status: finalize ? "completed" : r.status,
+      }),
+      finalize ? "Round finalized" : "Scores saved",
+    );
+  }
+  const counts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const r of seasonRounds)
+      if (r.status !== "draft")
+        for (const g of r.groups)
+          for (let i = 0; i < g.playerIds.length; i++)
+            for (let j = i + 1; j < g.playerIds.length; j++) {
+              const key = [g.playerIds[i], g.playerIds[j]].sort().join("|");
+              map.set(key, (map.get(key) || 0) + 1);
+            }
+    return map;
+  }, [league]);
+  const pairCount = (a: string, b: string) =>
+    counts.get([a, b].sort().join("|")) || 0;
 
-  useEffect(()=>{
-    type Tool = {name:string;title:string;description:string;inputSchema:object;annotations:{readOnlyHint:boolean};execute:(input:unknown)=>unknown|Promise<unknown>};
-    const modelContext=(document as Document & {modelContext?:{registerTool:(tool:Tool,options:{signal:AbortSignal})=>void|Promise<void>}}).modelContext;
-    if(!modelContext?.registerTool || !league)return;
-    const controller=new AbortController();
-    const register=(tool:Tool)=>{try{void Promise.resolve(modelContext.registerTool(tool,{signal:controller.signal})).catch(()=>{});}catch{}};
-    register({name:"read_league_summary",title:"Read league summary",description:"Read the current Sebastian Ladies league season, roster and rounds.",inputSchema:{type:"object",properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute:()=>({season:league.season,activePlayers:league.players.filter(p=>p.active).length,rounds:league.rounds.map(r=>({date:r.date,status:r.status,players:r.attendees.length,groups:r.groups.length}))})});
-    register({name:"create_league_round",title:"Create league round",description:"Create a Tuesday league round with active players selected, 7:32 AM first tee and ten-minute intervals.",inputSchema:{type:"object",properties:{date:{type:"string",description:"Date in YYYY-MM-DD format"}},required:["date"],additionalProperties:false},annotations:{readOnlyHint:false},execute:async input=>{
-      const date=(input as {date?:string})?.date;
-      if(busy||!date||!/^\d{4}-\d{2}-\d{2}$/.test(date)||new Date(`${date}T12:00:00Z`).getUTCDay()!==2)throw new Error("Provide a valid Tuesday date in YYYY-MM-DD format.");
-      if(seasonRounds.some(r=>r.date===date))throw new Error("A round already exists on this date.");
-      const created={...initialRound(league.season),date,attendees:league.players.filter(p=>p.active).map(p=>p.id)};
-      const ok=await save({...league,rounds:[...league.rounds,created]},"Round created");
-      if(!ok)throw new Error("The round could not be saved.");
-      setRoundId(created.id);setTab("round");return {id:created.id,date:created.date,selectedPlayers:created.attendees.length};
-    }});
-    return ()=>controller.abort();
-  },[league,version,busy]);
+  useEffect(() => {
+    type Tool = {
+      name: string;
+      title: string;
+      description: string;
+      inputSchema: object;
+      annotations: { readOnlyHint: boolean };
+      execute: (input: unknown) => unknown | Promise<unknown>;
+    };
+    const modelContext = (
+      document as Document & {
+        modelContext?: {
+          registerTool: (
+            tool: Tool,
+            options: { signal: AbortSignal },
+          ) => void | Promise<void>;
+        };
+      }
+    ).modelContext;
+    if (!modelContext?.registerTool || !league) return;
+    const controller = new AbortController();
+    const register = (tool: Tool) => {
+      try {
+        void Promise.resolve(
+          modelContext.registerTool(tool, { signal: controller.signal }),
+        ).catch(() => {});
+      } catch {}
+    };
+    register({
+      name: "read_league_summary",
+      title: "Read league summary",
+      description:
+        "Read the current Sebastian Ladies league season, roster and rounds.",
+      inputSchema: {
+        type: "object",
+        properties: {},
+        additionalProperties: false,
+      },
+      annotations: { readOnlyHint: true },
+      execute: () => ({
+        season: league.season,
+        activePlayers: league.players.filter((p) => p.active).length,
+        rounds: league.rounds.map((r) => ({
+          date: r.date,
+          status: r.status,
+          players: r.attendees.length,
+          groups: r.groups.length,
+        })),
+      }),
+    });
+    register({
+      name: "create_league_round",
+      title: "Create league round",
+      description:
+        "Create a Tuesday league round with active players selected, 7:32 AM first tee and ten-minute intervals.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          date: { type: "string", description: "Date in YYYY-MM-DD format" },
+        },
+        required: ["date"],
+        additionalProperties: false,
+      },
+      annotations: { readOnlyHint: false },
+      execute: async (input) => {
+        const date = (input as { date?: string })?.date;
+        if (
+          busy ||
+          !date ||
+          !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+          new Date(`${date}T12:00:00Z`).getUTCDay() !== 2
+        )
+          throw new Error("Provide a valid Tuesday date in YYYY-MM-DD format.");
+        if (seasonRounds.some((r) => r.date === date))
+          throw new Error("A round already exists on this date.");
+        const created = {
+          ...initialRound(league.season),
+          date,
+          attendees: league.players.filter((p) => p.active).map((p) => p.id),
+        };
+        const ok = await save(
+          { ...league, rounds: [...league.rounds, created] },
+          "Round created",
+        );
+        if (!ok) throw new Error("The round could not be saved.");
+        setRoundId(created.id);
+        setTab("round");
+        return {
+          id: created.id,
+          date: created.date,
+          selectedPlayers: created.attendees.length,
+        };
+      },
+    });
+    return () => controller.abort();
+  }, [league, version, busy]);
 
-  if(!league)return <main className="loading"><div className="brand-mark">S</div><p>{error||"Opening the league…"}</p>{error&&<Button onClick={()=>location.reload()}>Try again</Button>}</main>;
-  return <main className="app-shell">
-    <header className="topbar"><div className="identity"><span className="brand-mark">S</span><div><strong>SEBASTIAN</strong><small>LADIES GOLF LEAGUE</small></div></div><div className="header-right"><select className="season-chip season-picker" aria-label="Season" value={league.season} onChange={e=>{const season=e.target.value;void save({...league,season},"Season selected").then(ok=>{if(ok){const latest=[...league.rounds].filter(r=>r.season===season).sort((a,b)=>b.date.localeCompare(a.date))[0];setRoundId(latest?.id??"");setTab("round");}})}}>{league.seasons.map(s=><option key={s} value={s}>{s} season</option>)}</select><span className="admin-chip">{account?.role==="owner"?"Owner":"Admin"}</span>{account?.role==="owner"&&<a className="header-link" href="/admin">Administrators</a>}<button className="header-link" onClick={async()=>{await browserClient().auth.signOut();location.assign("/login");}}>Sign out</button></div></header>
-    <div className="workspace">
-      <div className="heading"><div><div className="eyebrow">TUESDAY LEAGUE · SEBASTIAN, FL</div><h1>League desk</h1><p>Pairings, scorecards and results for your winter–spring season.</p></div><Button className="primary-action" onClick={newRound} disabled={busy}><Plus/> New round</Button></div>
-      <div className="stats"><div><CalendarDays/><span>Next tee time<strong>{round&&round.status!=="completed"?`${prettyDate(round.date)} · ${timeFor(round.firstTime,0,0)}`:"Create a round"}</strong></span></div><div><Users/><span>Active players<strong>{players.filter(p=>p.active).length}</strong></span></div><div><Trophy/><span>Completed rounds<strong>{completed.length}</strong></span></div></div>
-      {error&&<div className="alert error" role="alert">{error}<button onClick={()=>setError("")} aria-label="Dismiss error">×</button></div>}
-      {notice&&<div className="alert success" role="status"><Check size={17}/>{notice}</div>}
-      <Tabs value={tab} onValueChange={setTab} className="main-tabs"><TabsList variant="line" className="nav-tabs"><TabsTrigger value="round"><CalendarDays/> Round</TabsTrigger><TabsTrigger value="players"><Users/> Players</TabsTrigger><TabsTrigger value="scores"><Pencil/> Scores</TabsTrigger><TabsTrigger value="history"><Table2/> History</TabsTrigger></TabsList>
-        <TabsContent value="round"><div className="two-column"><section className="panel main-panel"><div className="panel-head"><div><div className="eyebrow">WEEKLY PLAY</div><h2>{round?prettyDate(round.date):"Your first round"}</h2></div>{round&&<select className="round-select" aria-label="Select round" value={round.id} onChange={e=>setRoundId(e.target.value)}>{[...seasonRounds].sort((a,b)=>b.date.localeCompare(a.date)).map(r=><option key={r.id} value={r.id}>{r.date} · {r.status}</option>)}</select>}</div>
-          {!round?<div className="empty"><CalendarDays size={36}/><h3>Set up your first Tuesday</h3><p>Add your golfers, then create a round to take attendance and make pairings.</p><div className="row-actions"><Button variant="outline" onClick={()=>setTab("players")}>Add players</Button><Button onClick={newRound}>Create round</Button></div></div>:<>
-            <div className="round-details"><label>Date<Input type="date" value={round.date} disabled={busy||round.status==="completed"} onChange={e=>updateRound(r=>({...r,date:e.target.value}))}/></label><label>First tee time<Input type="time" value={round.firstTime} disabled={busy||round.status==="completed"} onChange={e=>updateRound(r=>({...r,firstTime:e.target.value}))}/></label><label>Minutes apart<Input type="number" min={1} max={60} value={round.interval} disabled={busy||round.status==="completed"} onChange={e=>updateRound(r=>({...r,interval:Math.max(1,Number(e.target.value)||10)}))}/></label><label className="event-instructions">Scorecard instructions <span className="optional">printed at the top of every card</span><textarea key={round.id} maxLength={300} defaultValue={round.instructions??""} placeholder="Example: Closest to the pin on #5 · Play ready golf · Turn in signed cards" onBlur={e=>{if(e.target.value.trim()!==(round.instructions??""))updateRound(r=>({...r,instructions:e.target.value.trim()}),"Scorecard instructions saved")}}/><small>Saved when you leave this box · 300 characters maximum</small></label></div>
-            <div className="section-title"><div><h3>Who's playing</h3><p>{round.attendees.length} of {players.filter(p=>p.active).length} active golfers selected</p></div><div className="row-actions"><Button variant="ghost" size="sm" disabled={busy||round.status==="completed"} onClick={()=>updateRound(r=>({...r,attendees:players.filter(p=>p.active).map(p=>p.id),groups:[],status:"draft"}))}>Select all</Button><Button variant="ghost" size="sm" disabled={busy||round.status==="completed"} onClick={()=>updateRound(r=>({...r,attendees:[],groups:[],status:"draft"}))}>Clear</Button></div></div>
-            {players.length===0?<div className="inline-empty">No players yet. <button onClick={()=>setTab("players")}>Add the roster →</button></div>:<div className="attendance-grid">{players.filter(p=>p.active).map(p=><label className="attendance" key={p.id}><Checkbox checked={round.attendees.includes(p.id)} disabled={busy||round.status==="completed"} onCheckedChange={checked=>updateRound(r=>{const attendees=checked?[...r.attendees,p.id]:r.attendees.filter(id=>id!==p.id);return {...r,attendees,groups:[],status:"draft"}})}/><span>{p.name}</span><em>{p.index===null?"H.I. needed":p.index.toFixed(1)}</em></label>)}</div>}
-            <div className="action-strip"><div><strong>Ready to make groups?</strong><span>Foursomes where possible · threesomes tee off first</span></div><Button disabled={busy||round.attendees.length<3||round.status==="completed"} onClick={generate}><Shuffle/> {round.groups.length?"Regenerate unlocked":"Generate pairings"}</Button></div>
-          </>}</section>
-          <aside className="side-stack"><section className="panel settings-panel"><div className="panel-head"><div><div className="eyebrow">COURSE DEFAULTS</div><h2>Red tees</h2></div><Button variant="ghost" size="icon" aria-label="Edit course settings" onClick={()=>{setCourseDraft(structuredClone(league.course));setCourseOpen(true)}}><Settings2/></Button></div><dl><div><dt>Course</dt><dd>{league.course.name}</dd></div><div><dt>Women's rating / slope</dt><dd>{league.course.rating} / {league.course.slope}</dd></div><div><dt>Par</dt><dd>{par}</dd></div><div><dt>Net allowance</dt><dd>{league.course.allowance}%</dd></div></dl><p className="microcopy">Course settings are applied when pairings are generated. Check the hole stroke indexes against your current course card.</p></section>
-          <section className="panel steps-panel"><div className="eyebrow">TUESDAY CHECKLIST</div>{[["01","Select who's playing",!!round?.attendees.length],["02","Generate pairings",!!round?.groups.length],["03","Print scorecards",false],["04","Enter gross scores",round?.status==="completed"]].map(([n,label,done])=><div className="step" key={String(n)}><span className={done?"step-done":""}>{done?<Check size={14}/>:n}</span>{label}</div>)}</section></aside></div>
-          {round&&round.groups.length>0&&<section className="panel pairings-panel"><div className="panel-head"><div><div className="eyebrow">TEE SHEET</div><h2>Pairings</h2><p>{round.groups.length} groups · first off {timeFor(round.firstTime,round.interval,0)}</p></div><div className="row-actions"><Button variant="outline" asChild><a href={`/leaderboard/${encodeURIComponent(round.id)}`} target="_blank" rel="noopener"><Trophy/> View leaderboard</a></Button><Button variant="outline" asChild><a href={`/api/scorecards?round=${encodeURIComponent(round.id)}`} target="_blank" rel="noopener"><Printer/> Open scorecards (PDF)</a></Button><Button variant="ghost" asChild><a href={`/api/scorecards?round=${encodeURIComponent(round.id)}&download=1`} target="_blank" rel="noopener">Download PDF</a></Button><Button onClick={openScores}><Pencil/> Enter scores</Button></div></div><p className="helper">The leaderboard link is public and refreshes as scores are saved. Open the PDF to view the tee sheet and scorecards.</p><div className="groups-grid">{round.groups.map((g,i)=><div className="group-card" key={g.id}><div className="group-top"><span>GROUP {i+1} <em>· {g.playerIds.length} players</em></span><strong>{timeFor(round.firstTime,round.interval,i)}</strong></div>{g.playerIds.map(id=>{const p=playerMap.get(id);const part=round.participants.find(item=>item.playerId===id);return <button type="button" className={`group-player ${swapSource===id?"swap-selected":""}`} key={id} disabled={busy||round.status==="completed"||g.locked} title="Select two players to swap groups" onClick={()=>swapSource?swap(id):setSwapSource(id)}><span>{p?.name??"Former player"}</span><small>CH {part?.courseHandicap??"—"}</small></button>})}<div className="group-footer"><Button variant="ghost" size="sm" disabled={busy||round.status==="completed"} onClick={()=>updateRound(r=>({...r,groups:r.groups.map(item=>item.id===g.id?{...item,locked:!item.locked}:item)}))}>{g.locked?<LockKeyhole size={15}/>:<LockKeyholeOpen size={15}/>} {g.locked?"Locked":"Lock group"}</Button></div></div>)}</div>{swapSource&&<p className="helper">Select a player in another unlocked group to swap. <button onClick={()=>setSwapSource("")}>Cancel</button></p>}</section>}
-        </TabsContent>
-        <TabsContent value="players"><section className="panel"><div className="panel-head"><div><div className="eyebrow">ROSTER</div><h2>Players</h2><p>{players.filter(p=>p.active).length} active · Handicap Indexes entered manually for now</p></div><Button onClick={()=>setEditPlayer(emptyPlayer())}><Plus/> Add player</Button></div>{players.length===0?<div className="empty"><Users size={36}/><h3>Bring your league together</h3><p>Add a golfer and her Handicap Index to get started. GHIN numbers are stored for future use.</p><Button onClick={()=>setEditPlayer(emptyPlayer())}>Add first player</Button></div>:<div className="table-scroll"><table className="data-table"><thead><tr><th>Player</th><th>GHIN #</th><th>H.I.</th><th>Red-tee CH</th><th>Status</th><th></th></tr></thead><tbody>{players.map(p=><tr key={p.id}><td><strong>{p.name}</strong><small>{p.email}</small></td><td>{p.ghin||"—"}</td><td>{p.index===null?"—":p.index.toFixed(1)}</td><td>{p.index===null?"—":courseHandicap(p.index,league.course)}</td><td><span className={`status ${p.active?"active":"inactive"}`}>{p.active?"Active":"Inactive"}</span></td><td><Button variant="ghost" size="sm" onClick={()=>setEditPlayer({...p})}>Edit <ChevronRight size={14}/></Button></td></tr>)}</tbody></table></div>}</section></TabsContent>
-        <TabsContent value="scores"><section className="panel"><div className="panel-head"><div><div className="eyebrow">SCORING</div><h2>{round?prettyDate(round.date):"Scores"}</h2><p>Individual net · gross minus playing handicap</p></div>{round&&<select className="round-select" aria-label="Select scoring round" value={round.id} onChange={e=>{setRoundId(e.target.value);setScoreDraft({})}}>{[...seasonRounds].sort((a,b)=>b.date.localeCompare(a.date)).map(r=><option key={r.id} value={r.id}>{r.date} · {r.status}</option>)}</select>}</div>{!round?.groups.length?<div className="empty"><Pencil size={36}/><h3>Pair a round first</h3><p>Scores are available after you've generated the tee sheet.</p><Button onClick={()=>setTab("round")}>Go to round</Button></div>:<><div className="score-tools"><label className="mode-toggle"><Checkbox checked={holeMode} onCheckedChange={v=>setHoleMode(!!v)}/> Enter hole-by-hole scores</label><span>{round.status==="completed"?"Finalized · scores can still be corrected":"Scores can be saved before finalizing"}</span></div><div className="score-list">{round.groups.flatMap((g,i)=>g.playerIds.map((id,j)=>{const p=playerMap.get(id);const rec=scoreDraft[id]??round.participants.find(x=>x.playerId===id)??participant(id);const net=rec.gross===null?null:rec.gross-rec.playingHandicap;return <div className="score-row" key={id}><div className="score-person"><small>{j===0?`GROUP ${i+1} · ${timeFor(round.firstTime,round.interval,i)}`:" "}</small><strong>{p?.name??"Former player"}</strong><span>H.I. {rec.index.toFixed(1)} · CH {rec.courseHandicap} · PH {rec.playingHandicap}</span></div>{holeMode?<div className="holes-entry">{Array.from({length:18},(_,h)=><label key={h}><span>{h+1}</span><input type="number" min="1" max="20" aria-label={`${p?.name} hole ${h+1}`} value={rec.holes[h]??""} onChange={e=>{const holes=[...rec.holes];holes[h]=e.target.value===""?null:Number(e.target.value);const gross=holes.every(x=>x!==null)?holes.reduce<number>((sum,x)=>sum+(x||0),0):null;setScoreDraft({...scoreDraft,[id]:{...rec,holes,gross}})}}/></label>)}</div>:<label className="gross-entry">Gross <Input type="number" min="1" max="200" aria-label={`${p?.name} gross score`} value={rec.gross??""} onChange={e=>setScoreDraft({...scoreDraft,[id]:{...rec,gross:e.target.value===""?null:Number(e.target.value)}})}/></label>}<div className="net-score"><span>NET</span><strong>{net??"—"}</strong></div></div>}))}</div><div className="score-actions"><Button variant="outline" onClick={()=>saveScores(false)} disabled={busy}><Save/> Save scores</Button><Button onClick={()=>saveScores(true)} disabled={busy}>Finalize round</Button></div></>}</section></TabsContent>
-        <TabsContent value="history"><div className="two-column history-layout"><section className="panel"><div className="panel-head"><div><div className="eyebrow">SEASON RECORD</div><h2>Round history</h2></div><Button variant="outline" onClick={()=>{setNewSeasonName("");setNewSeasonOpen(true)}}><Plus/> New season</Button></div>{seasonRounds.length===0?<div className="empty"><CalendarDays size={36}/><h3>No rounds yet</h3><p>Your pairings and results will appear here after you create a round.</p></div>:<div className="round-history">{[...seasonRounds].sort((a,b)=>b.date.localeCompare(a.date)).map(r=><button key={r.id} onClick={()=>{setRoundId(r.id);setTab("round")}}><span><strong>{prettyDate(r.date)}</strong><small>{r.attendees.length} players · {r.groups.length} groups</small></span><span className={`status ${r.status}`}>{r.status}</span><ChevronRight size={17}/></button>)}</div>}{completed.length>0&&<div className="results"><h3>Latest results</h3>{[...completed].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3).map(r=><div key={r.id}><strong>{prettyDate(r.date)}</strong><div className="results-list">{r.participants.filter(p=>p.gross!==null).sort((a,b)=>(a.gross!-a.playingHandicap)-(b.gross!-b.playingHandicap)).map(p=><span key={p.playerId}>{playerMap.get(p.playerId)?.name??"Former player"} <b>{p.gross} gross · {p.gross!-p.playingHandicap} net</b></span>)}</div></div>)}</div>}</section><section className="panel matrix-panel"><div className="eyebrow">ROTATION</div><h2>Pairing history</h2><p>Times each pair has played together this season.</p>{players.length<2?<div className="inline-empty">Add two or more players to see the matrix.</div>:<div className="matrix-scroll"><table><thead><tr><th></th>{players.filter(p=>p.active).map(p=><th key={p.id} title={p.name}>{p.name.split(" ")[0].slice(0,3)}</th>)}</tr></thead><tbody>{players.filter(p=>p.active).map(a=><tr key={a.id}><th title={a.name}>{a.name}</th>{players.filter(p=>p.active).map(b=><td className={a.id===b.id?"self":pairCount(a.id,b.id)>=3?"repeat":pairCount(a.id,b.id)===0?"fresh":""} key={b.id}>{a.id===b.id?"—":pairCount(a.id,b.id)}</td>)}</tr>)}</tbody></table></div>}</section></div></TabsContent>
-      </Tabs>
-      <footer>Course data: <a href="https://www.fsga.org/Club/Detail/5eee5d53-b368-4ef3-900f-2e9aebbca985" target="_blank" rel="noreferrer">FSGA red-tee rating</a> · <a href="https://www.cityofsebastian.org/240/Course-Layout-Pictures" target="_blank" rel="noreferrer">Sebastian scorecard</a>. Review settings before your first round.</footer>
-    </div>
-    <Dialog open={!!editPlayer} onOpenChange={v=>!v&&setEditPlayer(null)}><DialogContent><DialogHeader><DialogTitle>{editPlayer&&players.some(p=>p.id===editPlayer.id)?"Edit player":"Add player"}</DialogTitle><DialogDescription>Handicap Index is used to calculate red-tee course and playing handicaps.</DialogDescription></DialogHeader>{editPlayer&&<form className="edit-form" onSubmit={e=>{e.preventDefault();if(!league)return;const name=editPlayer.name.trim();if(!name){setError("Enter a player name.");return;}const record={...editPlayer,name};const exists=league.players.some(p=>p.id===record.id);void save({...league,players:exists?league.players.map(p=>p.id===record.id?record:p):[...league.players,record]},exists?"Player updated":"Player added").then(ok=>{if(ok)setEditPlayer(null)})}}><label>Name<Input required value={editPlayer.name} onChange={e=>setEditPlayer({...editPlayer,name:e.target.value})}/></label><div className="form-pair"><label>GHIN number<Input inputMode="numeric" value={editPlayer.ghin} onChange={e=>setEditPlayer({...editPlayer,ghin:e.target.value})}/></label><label>Handicap Index<Input type="number" step="0.1" min="-10" max="54" value={editPlayer.index??""} onChange={e=>setEditPlayer({...editPlayer,index:e.target.value===""?null:Number(e.target.value)})}/></label></div><label>Email <span className="optional">optional</span><Input type="email" value={editPlayer.email} onChange={e=>setEditPlayer({...editPlayer,email:e.target.value})}/></label><label>Phone <span className="optional">optional</span><Input type="tel" value={editPlayer.phone} onChange={e=>setEditPlayer({...editPlayer,phone:e.target.value})}/></label><label className="mode-toggle"><Checkbox checked={editPlayer.active} onCheckedChange={v=>setEditPlayer({...editPlayer,active:!!v})}/> Active player</label><div className="dialog-actions"><Button type="button" variant="outline" onClick={()=>setEditPlayer(null)}>Cancel</Button><Button type="submit" disabled={busy}>Save player</Button></div></form>}</DialogContent></Dialog>
-    <Dialog open={newSeasonOpen} onOpenChange={setNewSeasonOpen}><DialogContent><DialogHeader><DialogTitle>Start a new season</DialogTitle><DialogDescription>The roster carries forward. Pairing counts begin again, and prior rounds stay in their seasons.</DialogDescription></DialogHeader><form className="edit-form" onSubmit={e=>{e.preventDefault();const name=newSeasonName.trim();if(!name||league.seasons.includes(name)){setError("Enter a new season name, such as 2027–28.");return;}void save({...league,season:name,seasons:[...league.seasons,name]},"New season started").then(ok=>{if(ok){setRoundId("");setNewSeasonOpen(false);setTab("round")}})}}><label>Season name<Input required placeholder="2027–28" value={newSeasonName} onChange={e=>setNewSeasonName(e.target.value)}/></label><div className="dialog-actions"><Button type="button" variant="outline" onClick={()=>setNewSeasonOpen(false)}>Cancel</Button><Button type="submit" disabled={busy}>Start season</Button></div></form></DialogContent></Dialog>
-    <Dialog open={courseOpen} onOpenChange={setCourseOpen}><DialogContent className="course-dialog"><DialogHeader><DialogTitle>Course & handicap settings</DialogTitle><DialogDescription>Red tees · 18-hole individual net. Check the course card if its allocations have changed.</DialogDescription></DialogHeader><form className="edit-form" onSubmit={e=>{e.preventDefault();if(new Set(courseDraft.strokeIndex).size!==18||courseDraft.strokeIndex.some(x=>x<1||x>18)){setError("Stroke indexes must contain each number from 1 to 18 exactly once.");return;}void save({...league,course:courseDraft},"Course settings updated").then(ok=>{if(ok)setCourseOpen(false)})}}><label>Course name<Input value={courseDraft.name} onChange={e=>setCourseDraft({...courseDraft,name:e.target.value})}/></label><div className="form-pair three"><label>Rating<Input type="number" step="0.1" value={courseDraft.rating} onChange={e=>setCourseDraft({...courseDraft,rating:Number(e.target.value)})}/></label><label>Slope<Input type="number" min="55" max="155" value={courseDraft.slope} onChange={e=>setCourseDraft({...courseDraft,slope:Number(e.target.value)})}/></label><label>Allowance %<Input type="number" min="0" max="100" value={courseDraft.allowance} onChange={e=>setCourseDraft({...courseDraft,allowance:Number(e.target.value)})}/></label></div><h3>Hole par and women's stroke index</h3><div className="course-holes">{Array.from({length:18},(_,i)=><div key={i}><strong>{i+1}</strong><label>Par<input type="number" min="3" max="6" value={courseDraft.par[i]} onChange={e=>setCourseDraft({...courseDraft,par:courseDraft.par.map((x,j)=>j===i?Number(e.target.value):x)})}/></label><label>SI<input type="number" min="1" max="18" value={courseDraft.strokeIndex[i]} onChange={e=>setCourseDraft({...courseDraft,strokeIndex:courseDraft.strokeIndex.map((x,j)=>j===i?Number(e.target.value):x)})}/></label></div>)}</div><div className="dialog-actions"><Button type="button" variant="outline" onClick={()=>setCourseOpen(false)}>Cancel</Button><Button type="submit" disabled={busy}>Save settings</Button></div></form></DialogContent></Dialog>
-    {round?.groups.length? <div className="print-only"><div className="print-sheet-title">SEBASTIAN LADIES GOLF LEAGUE · {league.season} · {prettyDate(round.date)} · RED TEES</div><table className="print-pairings"><thead><tr><th>Time</th><th>Group</th><th>Players</th></tr></thead><tbody>{round.groups.map((g,i)=><tr key={g.id}><td>{timeFor(round.firstTime,round.interval,i)}</td><td>{i+1}</td><td>{g.playerIds.map(id=>playerMap.get(id)?.name).join(" · ")}</td></tr>)}</tbody></table>{round.groups.map((g,i)=><div className="print-page" key={g.id}><Scorecard round={round} groupIndex={i} playerMap={playerMap} league={league}/><Scorecard round={round} groupIndex={i} playerMap={playerMap} league={league}/></div>)}</div>:null}
-  </main>;
+  if (!league)
+    return (
+      <main className="loading">
+        <div className="brand-mark">S</div>
+        <p>{error || "Opening the league…"}</p>
+        {error && <Button onClick={() => location.reload()}>Try again</Button>}
+      </main>
+    );
+  return (
+    <main className="app-shell">
+      <header className="topbar">
+        <div className="identity">
+          <span className="brand-mark">S</span>
+          <div>
+            <strong>SEBASTIAN</strong>
+            <small>LADIES GOLF LEAGUE</small>
+          </div>
+        </div>
+        <div className="header-right">
+          <select
+            className="season-chip season-picker"
+            aria-label="Season"
+            value={league.season}
+            onChange={(e) => {
+              const season = e.target.value;
+              void save({ ...league, season }, "Season selected").then((ok) => {
+                if (ok) {
+                  const latest = [...league.rounds]
+                    .filter((r) => r.season === season)
+                    .sort((a, b) => b.date.localeCompare(a.date))[0];
+                  setRoundId(latest?.id ?? "");
+                  setTab("round");
+                }
+              });
+            }}
+          >
+            {league.seasons.map((s) => (
+              <option key={s} value={s}>
+                {s} season
+              </option>
+            ))}
+          </select>
+          <span className="admin-chip">
+            {account?.role === "owner" ? "Owner" : "Admin"}
+          </span>
+          {account?.role === "owner" && (
+            <a className="header-link" href="/admin">
+              Administrators
+            </a>
+          )}
+          <button
+            className="header-link"
+            onClick={async () => {
+              await browserClient().auth.signOut();
+              location.assign("/login");
+            }}
+          >
+            Sign out
+          </button>
+        </div>
+      </header>
+      <div className="workspace">
+        <div className="heading">
+          <div>
+            <div className="eyebrow">TUESDAY LEAGUE · SEBASTIAN, FL</div>
+            <h1>League desk</h1>
+            <p>
+              Pairings, scorecards and results for your winter–spring season.
+            </p>
+          </div>
+          <Button className="primary-action" onClick={newRound} disabled={busy}>
+            <Plus /> New round
+          </Button>
+        </div>
+        <div className="stats">
+          <div>
+            <CalendarDays />
+            <span>
+              Next tee time
+              <strong>
+                {round && round.status !== "completed"
+                  ? `${prettyDate(round.date)} · ${timeFor(round.firstTime, 0, 0)}`
+                  : "Create a round"}
+              </strong>
+            </span>
+          </div>
+          <div>
+            <Users />
+            <span>
+              Active players
+              <strong>{players.filter((p) => p.active).length}</strong>
+            </span>
+          </div>
+          <div>
+            <Trophy />
+            <span>
+              Completed rounds<strong>{completed.length}</strong>
+            </span>
+          </div>
+        </div>
+        {error && (
+          <div className="alert error" role="alert">
+            {error}
+            <button onClick={() => setError("")} aria-label="Dismiss error">
+              ×
+            </button>
+          </div>
+        )}
+        {notice && (
+          <div className="alert success" role="status">
+            <Check size={17} />
+            {notice}
+          </div>
+        )}
+        <Tabs value={tab} onValueChange={setTab} className="main-tabs">
+          <TabsList variant="line" className="nav-tabs">
+            <TabsTrigger value="round">
+              <CalendarDays /> Round
+            </TabsTrigger>
+            <TabsTrigger value="players">
+              <Users /> Players
+            </TabsTrigger>
+            <TabsTrigger value="scores">
+              <Pencil /> Scores
+            </TabsTrigger>
+            <TabsTrigger value="history">
+              <Table2 /> History
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="round">
+            <div className="two-column">
+              <section className="panel main-panel">
+                <div className="panel-head">
+                  <div>
+                    <div className="eyebrow">WEEKLY PLAY</div>
+                    <h2>
+                      {round ? prettyDate(round.date) : "Your first round"}
+                    </h2>
+                  </div>
+                  {round && (
+                    <select
+                      className="round-select"
+                      aria-label="Select round"
+                      value={round.id}
+                      onChange={(e) => setRoundId(e.target.value)}
+                    >
+                      {[...seasonRounds]
+                        .sort((a, b) => b.date.localeCompare(a.date))
+                        .map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {r.date} · {r.status}
+                          </option>
+                        ))}
+                    </select>
+                  )}
+                </div>
+                {!round ? (
+                  <div className="empty">
+                    <CalendarDays size={36} />
+                    <h3>Set up your first Tuesday</h3>
+                    <p>
+                      Add your golfers, then create a round to take attendance
+                      and make pairings.
+                    </p>
+                    <div className="row-actions">
+                      <Button
+                        variant="outline"
+                        onClick={() => setTab("players")}
+                      >
+                        Add players
+                      </Button>
+                      <Button onClick={newRound}>Create round</Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="round-details">
+                      <label>
+                        Date
+                        <Input
+                          type="date"
+                          value={round.date}
+                          disabled={busy || round.status === "completed"}
+                          onChange={(e) =>
+                            updateRound((r) => ({ ...r, date: e.target.value }))
+                          }
+                        />
+                      </label>
+                      <label>
+                        First tee time
+                        <Input
+                          type="time"
+                          value={round.firstTime}
+                          disabled={busy || round.status === "completed"}
+                          onChange={(e) =>
+                            updateRound((r) => ({
+                              ...r,
+                              firstTime: e.target.value,
+                            }))
+                          }
+                        />
+                      </label>
+                      <label>
+                        Minutes apart
+                        <Input
+                          type="number"
+                          min={1}
+                          max={60}
+                          value={round.interval}
+                          disabled={busy || round.status === "completed"}
+                          onChange={(e) =>
+                            updateRound((r) => ({
+                              ...r,
+                              interval: Math.max(
+                                1,
+                                Number(e.target.value) || 10,
+                              ),
+                            }))
+                          }
+                        />
+                      </label>
+                      <label className="event-instructions">
+                        Scorecard instructions{" "}
+                        <span className="optional">
+                          printed at the top of every card
+                        </span>
+                        <textarea
+                          key={round.id}
+                          maxLength={300}
+                          defaultValue={round.instructions ?? ""}
+                          placeholder="Example: Closest to the pin on #5 · Play ready golf · Turn in signed cards"
+                          onBlur={(e) => {
+                            if (
+                              e.target.value.trim() !==
+                              (round.instructions ?? "")
+                            )
+                              updateRound(
+                                (r) => ({
+                                  ...r,
+                                  instructions: e.target.value.trim(),
+                                }),
+                                "Scorecard instructions saved",
+                              );
+                          }}
+                        />
+                        <small>
+                          Saved when you leave this box · 300 characters maximum
+                        </small>
+                      </label>
+                    </div>
+                    <section className="game-settings">
+                      <div>
+                        <label>
+                          Game format
+                          <select
+                            value={selectedGame}
+                            disabled={busy || round.status === "completed"}
+                            onChange={(e) => {
+                              const type = e.target.value as GameType;
+                              updateRound(
+                                (r) => ({
+                                  ...r,
+                                  game: {
+                                    type,
+                                    countingHoles:
+                                      type === "selected-holes" ||
+                                      type === "stableford"
+                                        ? Array.from(
+                                            { length: 18 },
+                                            (_, i) => i,
+                                          )
+                                        : undefined,
+                                    linkedRoundId: type.startsWith("two-round")
+                                      ? r.game?.linkedRoundId
+                                      : undefined,
+                                  },
+                                }),
+                                "Game format saved",
+                              );
+                            }}
+                          >
+                            {Object.entries(GAME_LABELS).map(
+                              ([value, label]) => (
+                                <option key={value} value={value}>
+                                  {label}
+                                </option>
+                              ),
+                            )}
+                          </select>
+                        </label>
+                        {selectedGame.startsWith("two-round") && (
+                          <label>
+                            Linked event
+                            <select
+                              value={round.game?.linkedRoundId ?? ""}
+                              disabled={busy || round.status === "completed"}
+                              onChange={(e) =>
+                                updateRound(
+                                  (r) => ({
+                                    ...r,
+                                    game: {
+                                      ...r.game!,
+                                      linkedRoundId: e.target.value,
+                                    },
+                                  }),
+                                  "Linked event saved",
+                                )
+                              }
+                            >
+                              <option value="">Choose an event…</option>
+                              {league.rounds
+                                .filter(
+                                  (r) =>
+                                    r.id !== round.id &&
+                                    r.season === round.season &&
+                                    r.groups.length > 0,
+                                )
+                                .sort((a, b) => b.date.localeCompare(a.date))
+                                .map((r) => (
+                                  <option key={r.id} value={r.id}>
+                                    {prettyDate(r.date)}
+                                  </option>
+                                ))}
+                            </select>
+                          </label>
+                        )}
+                      </div>
+                      <p>
+                        {selectedGame === "stableford"
+                          ? "Net Stableford: 0 / 1 / 2 / 3 / 4 / 5 points from net double bogey through net albatross."
+                          : selectedGame === "three-three-three"
+                            ? "The leaderboard takes each golfer's best three net-to-par results on par 3s, par 4s and par 5s."
+                            : selectedGame === "two-round-aggregate"
+                              ? "Adds each golfer’s net total from both linked rounds."
+                              : selectedGame === "two-round-best-hole"
+                                ? "Uses the lower net score on each hole across both linked rounds."
+                                : "Leaderboard is ranked by the lowest net score."}
+                      </p>
+                      {(selectedGame === "selected-holes" ||
+                        selectedGame === "stableford") && (
+                        <div className="hole-picker">
+                          <strong>Counting holes</strong>
+                          {Array.from({ length: 18 }, (_, h) => (
+                            <label
+                              className={
+                                (round.game?.countingHoles ?? []).includes(h)
+                                  ? "selected"
+                                  : ""
+                              }
+                              key={h}
+                            >
+                              <Checkbox
+                                checked={(
+                                  round.game?.countingHoles ?? []
+                                ).includes(h)}
+                                disabled={busy || round.status === "completed"}
+                                onCheckedChange={(checked) => {
+                                  const holes = checked
+                                    ? [...(round.game?.countingHoles ?? []), h]
+                                    : (round.game?.countingHoles ?? []).filter(
+                                        (x) => x !== h,
+                                      );
+                                  updateRound(
+                                    (r) => ({
+                                      ...r,
+                                      game: {
+                                        ...r.game!,
+                                        countingHoles: holes.sort(
+                                          (a, b) => a - b,
+                                        ),
+                                      },
+                                    }),
+                                    "Counting holes saved",
+                                  );
+                                }}
+                              />
+                              {h + 1}
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </section>
+                    <div className="section-title">
+                      <div>
+                        <h3>Who's playing</h3>
+                        <p>
+                          {round.attendees.length} of{" "}
+                          {players.filter((p) => p.active).length} active
+                          golfers selected
+                        </p>
+                      </div>
+                      <div className="row-actions">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={busy || round.status === "completed"}
+                          onClick={() =>
+                            updateRound((r) => ({
+                              ...r,
+                              attendees: players
+                                .filter((p) => p.active)
+                                .map((p) => p.id),
+                              groups: [],
+                              status: "draft",
+                            }))
+                          }
+                        >
+                          Select all
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={busy || round.status === "completed"}
+                          onClick={() =>
+                            updateRound((r) => ({
+                              ...r,
+                              attendees: [],
+                              groups: [],
+                              status: "draft",
+                            }))
+                          }
+                        >
+                          Clear
+                        </Button>
+                      </div>
+                    </div>
+                    {players.length === 0 ? (
+                      <div className="inline-empty">
+                        No players yet.{" "}
+                        <button onClick={() => setTab("players")}>
+                          Add the roster →
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="attendance-grid">
+                        {players
+                          .filter((p) => p.active)
+                          .map((p) => (
+                            <label className="attendance" key={p.id}>
+                              <Checkbox
+                                checked={round.attendees.includes(p.id)}
+                                disabled={busy || round.status === "completed"}
+                                onCheckedChange={(checked) =>
+                                  updateRound((r) => {
+                                    const attendees = checked
+                                      ? [...r.attendees, p.id]
+                                      : r.attendees.filter((id) => id !== p.id);
+                                    return {
+                                      ...r,
+                                      attendees,
+                                      groups: [],
+                                      status: "draft",
+                                    };
+                                  })
+                                }
+                              />
+                              <span>{p.name}</span>
+                              <em>
+                                {p.index === null
+                                  ? "H.I. needed"
+                                  : p.index.toFixed(1)}
+                              </em>
+                            </label>
+                          ))}
+                      </div>
+                    )}
+                    <div className="action-strip">
+                      <div>
+                        <strong>Ready to make groups?</strong>
+                        <span>
+                          Foursomes where possible · threesomes tee off first
+                        </span>
+                      </div>
+                      <Button
+                        disabled={
+                          busy ||
+                          round.attendees.length < 3 ||
+                          round.status === "completed"
+                        }
+                        onClick={generate}
+                      >
+                        <Shuffle />{" "}
+                        {round.groups.length
+                          ? "Regenerate unlocked"
+                          : "Generate pairings"}
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </section>
+              <aside className="side-stack">
+                <section className="panel settings-panel">
+                  <div className="panel-head">
+                    <div>
+                      <div className="eyebrow">COURSE DEFAULTS</div>
+                      <h2>Red tees</h2>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Edit course settings"
+                      onClick={() => {
+                        setCourseDraft(structuredClone(league.course));
+                        setCourseOpen(true);
+                      }}
+                    >
+                      <Settings2 />
+                    </Button>
+                  </div>
+                  <dl>
+                    <div>
+                      <dt>Course</dt>
+                      <dd>{league.course.name}</dd>
+                    </div>
+                    <div>
+                      <dt>Women's rating / slope</dt>
+                      <dd>
+                        {league.course.rating} / {league.course.slope}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Par</dt>
+                      <dd>{par}</dd>
+                    </div>
+                    <div>
+                      <dt>Net allowance</dt>
+                      <dd>{league.course.allowance}%</dd>
+                    </div>
+                  </dl>
+                  <p className="microcopy">
+                    Course settings are applied when pairings are generated.
+                    Check the hole stroke indexes against your current course
+                    card.
+                  </p>
+                </section>
+                <section className="panel steps-panel">
+                  <div className="eyebrow">TUESDAY CHECKLIST</div>
+                  {[
+                    ["01", "Select who's playing", !!round?.attendees.length],
+                    ["02", "Generate pairings", !!round?.groups.length],
+                    ["03", "Print scorecards", false],
+                    ["04", "Enter gross scores", round?.status === "completed"],
+                  ].map(([n, label, done]) => (
+                    <div className="step" key={String(n)}>
+                      <span className={done ? "step-done" : ""}>
+                        {done ? <Check size={14} /> : n}
+                      </span>
+                      {label}
+                    </div>
+                  ))}
+                </section>
+              </aside>
+            </div>
+            {round && round.groups.length > 0 && (
+              <section className="panel pairings-panel">
+                <div className="panel-head">
+                  <div>
+                    <div className="eyebrow">TEE SHEET</div>
+                    <h2>Pairings</h2>
+                    <p>
+                      {round.groups.length} groups · first off{" "}
+                      {timeFor(round.firstTime, round.interval, 0)}
+                    </p>
+                  </div>
+                  <div className="row-actions">
+                    <Button variant="outline" asChild>
+                      <a
+                        href={`/leaderboard/${encodeURIComponent(round.id)}`}
+                        target="_blank"
+                        rel="noopener"
+                      >
+                        <Trophy /> View leaderboard
+                      </a>
+                    </Button>
+                    <Button variant="outline" asChild>
+                      <a
+                        href={`/api/scorecards?round=${encodeURIComponent(round.id)}`}
+                        target="_blank"
+                        rel="noopener"
+                      >
+                        <Printer /> Open scorecards (PDF)
+                      </a>
+                    </Button>
+                    <Button variant="ghost" asChild>
+                      <a
+                        href={`/api/scorecards?round=${encodeURIComponent(round.id)}&download=1`}
+                        target="_blank"
+                        rel="noopener"
+                      >
+                        Download PDF
+                      </a>
+                    </Button>
+                    <Button onClick={openScores}>
+                      <Pencil /> Enter scores
+                    </Button>
+                  </div>
+                </div>
+                <p className="helper">
+                  The leaderboard link is public and refreshes as scores are
+                  saved. Open the PDF to view the tee sheet and scorecards.
+                </p>
+                <div className="groups-grid">
+                  {round.groups.map((g, i) => (
+                    <div className="group-card" key={g.id}>
+                      <div className="group-top">
+                        <span>
+                          GROUP {i + 1} <em>· {g.playerIds.length} players</em>
+                        </span>
+                        <strong>
+                          {timeFor(round.firstTime, round.interval, i)}
+                        </strong>
+                      </div>
+                      {g.playerIds.map((id) => {
+                        const p = playerMap.get(id);
+                        const part = round.participants.find(
+                          (item) => item.playerId === id,
+                        );
+                        return (
+                          <button
+                            type="button"
+                            className={`group-player ${swapSource === id ? "swap-selected" : ""}`}
+                            key={id}
+                            disabled={
+                              busy || round.status === "completed" || g.locked
+                            }
+                            title="Select two players to swap groups"
+                            onClick={() =>
+                              swapSource ? swap(id) : setSwapSource(id)
+                            }
+                          >
+                            <span>{p?.name ?? "Former player"}</span>
+                            <small>CH {part?.courseHandicap ?? "—"}</small>
+                          </button>
+                        );
+                      })}
+                      <div className="group-footer">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={busy || round.status === "completed"}
+                          onClick={() =>
+                            updateRound((r) => ({
+                              ...r,
+                              groups: r.groups.map((item) =>
+                                item.id === g.id
+                                  ? { ...item, locked: !item.locked }
+                                  : item,
+                              ),
+                            }))
+                          }
+                        >
+                          {g.locked ? (
+                            <LockKeyhole size={15} />
+                          ) : (
+                            <LockKeyholeOpen size={15} />
+                          )}{" "}
+                          {g.locked ? "Locked" : "Lock group"}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {swapSource && (
+                  <p className="helper">
+                    Select a player in another unlocked group to swap.{" "}
+                    <button onClick={() => setSwapSource("")}>Cancel</button>
+                  </p>
+                )}
+              </section>
+            )}
+          </TabsContent>
+          <TabsContent value="players">
+            <section className="panel">
+              <div className="panel-head">
+                <div>
+                  <div className="eyebrow">ROSTER</div>
+                  <h2>Players</h2>
+                  <p>
+                    {players.filter((p) => p.active).length} active · Handicap
+                    Indexes entered manually for now
+                  </p>
+                </div>
+                <Button onClick={() => setEditPlayer(emptyPlayer())}>
+                  <Plus /> Add player
+                </Button>
+              </div>
+              {players.length === 0 ? (
+                <div className="empty">
+                  <Users size={36} />
+                  <h3>Bring your league together</h3>
+                  <p>
+                    Add a golfer and her Handicap Index to get started. GHIN
+                    numbers are stored for future use.
+                  </p>
+                  <Button onClick={() => setEditPlayer(emptyPlayer())}>
+                    Add first player
+                  </Button>
+                </div>
+              ) : (
+                <div className="table-scroll">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Player</th>
+                        <th>GHIN #</th>
+                        <th>H.I.</th>
+                        <th>Red-tee CH</th>
+                        <th>Status</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {players.map((p) => (
+                        <tr key={p.id}>
+                          <td>
+                            <strong>{p.name}</strong>
+                            <small>{p.email}</small>
+                          </td>
+                          <td>{p.ghin || "—"}</td>
+                          <td>{p.index === null ? "—" : p.index.toFixed(1)}</td>
+                          <td>
+                            {p.index === null
+                              ? "—"
+                              : courseHandicap(p.index, league.course)}
+                          </td>
+                          <td>
+                            <span
+                              className={`status ${p.active ? "active" : "inactive"}`}
+                            >
+                              {p.active ? "Active" : "Inactive"}
+                            </span>
+                          </td>
+                          <td>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setEditPlayer({ ...p })}
+                            >
+                              Edit <ChevronRight size={14} />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          </TabsContent>
+          <TabsContent value="scores">
+            <section className="panel">
+              <div className="panel-head">
+                <div>
+                  <div className="eyebrow">SCORING</div>
+                  <h2>{round ? prettyDate(round.date) : "Scores"}</h2>
+                  <p>
+                    {round ? gameLabel(round) : "Individual net"}
+                    {requiresHoles
+                      ? " · hole-by-hole scores required"
+                      : " · gross minus playing handicap"}
+                  </p>
+                </div>
+                {round && (
+                  <select
+                    className="round-select"
+                    aria-label="Select scoring round"
+                    value={round.id}
+                    onChange={(e) => {
+                      setRoundId(e.target.value);
+                      setScoreDraft({});
+                    }}
+                  >
+                    {[...seasonRounds]
+                      .sort((a, b) => b.date.localeCompare(a.date))
+                      .map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.date} · {r.status}
+                        </option>
+                      ))}
+                  </select>
+                )}
+              </div>
+              {!round?.groups.length ? (
+                <div className="empty">
+                  <Pencil size={36} />
+                  <h3>Pair a round first</h3>
+                  <p>
+                    Scores are available after you've generated the tee sheet.
+                  </p>
+                  <Button onClick={() => setTab("round")}>Go to round</Button>
+                </div>
+              ) : (
+                <>
+                  <div className="score-tools">
+                    <label className="mode-toggle">
+                      <Checkbox
+                        checked={holeMode || requiresHoles}
+                        disabled={requiresHoles}
+                        onCheckedChange={(v) => setHoleMode(!!v)}
+                      />{" "}
+                      Enter hole-by-hole scores
+                    </label>
+                    <span>
+                      {round.status === "completed"
+                        ? "Finalized · scores can still be corrected"
+                        : "Scores can be saved before finalizing"}
+                    </span>
+                  </div>
+                  <div className="score-list">
+                    {round.groups.flatMap((g, i) =>
+                      g.playerIds.map((id, j) => {
+                        const p = playerMap.get(id);
+                        const rec =
+                          scoreDraft[id] ??
+                          round.participants.find((x) => x.playerId === id) ??
+                          participant(id);
+                        const net =
+                          rec.gross === null
+                            ? null
+                            : rec.gross - rec.playingHandicap;
+                        const preview = scoreRound(league, {
+                          ...round,
+                          participants: round.attendees.map(
+                            (playerId) =>
+                              scoreDraft[playerId] ??
+                              round.participants.find(
+                                (item) => item.playerId === playerId,
+                              ) ??
+                              participant(playerId),
+                          ),
+                        }).find((result) => result.playerId === id);
+                        return (
+                          <div className="score-row" key={id}>
+                            <div className="score-person">
+                              <small>
+                                {j === 0
+                                  ? `GROUP ${i + 1} · ${timeFor(round.firstTime, round.interval, i)}`
+                                  : " "}
+                              </small>
+                              <strong>{p?.name ?? "Former player"}</strong>
+                              <span>
+                                H.I. {rec.index.toFixed(1)} · CH{" "}
+                                {rec.courseHandicap} · PH {rec.playingHandicap}
+                              </span>
+                            </div>
+                            {holeMode || requiresHoles ? (
+                              <div className="holes-entry">
+                                {Array.from({ length: 18 }, (_, h) => (
+                                  <label
+                                    key={h}
+                                    className={
+                                      (selectedGame === "selected-holes" ||
+                                        selectedGame === "stableford") &&
+                                      countingHoles(round).includes(h)
+                                        ? "counting"
+                                        : ""
+                                    }
+                                  >
+                                    <span>{h + 1}</span>
+                                    <input
+                                      type="number"
+                                      min="1"
+                                      max="20"
+                                      aria-label={`${p?.name} hole ${h + 1}`}
+                                      value={rec.holes[h] ?? ""}
+                                      onChange={(e) => {
+                                        const holes = [...rec.holes];
+                                        holes[h] =
+                                          e.target.value === ""
+                                            ? null
+                                            : Number(e.target.value);
+                                        const gross = holes.every(
+                                          (x) => x !== null,
+                                        )
+                                          ? holes.reduce<number>(
+                                              (sum, x) => sum + (x || 0),
+                                              0,
+                                            )
+                                          : null;
+                                        setScoreDraft({
+                                          ...scoreDraft,
+                                          [id]: { ...rec, holes, gross },
+                                        });
+                                      }}
+                                    />
+                                  </label>
+                                ))}
+                              </div>
+                            ) : (
+                              <label className="gross-entry">
+                                Gross{" "}
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  max="200"
+                                  aria-label={`${p?.name} gross score`}
+                                  value={rec.gross ?? ""}
+                                  onChange={(e) =>
+                                    setScoreDraft({
+                                      ...scoreDraft,
+                                      [id]: {
+                                        ...rec,
+                                        gross:
+                                          e.target.value === ""
+                                            ? null
+                                            : Number(e.target.value),
+                                      },
+                                    })
+                                  }
+                                />
+                              </label>
+                            )}
+                            <div className="net-score">
+                              <span>
+                                {selectedGame === "stableford"
+                                  ? "POINTS"
+                                  : "NET"}
+                              </span>
+                              <strong>
+                                {selectedGame === "stableford"
+                                  ? (preview?.points ?? "—")
+                                  : (preview?.net ?? net ?? "—")}
+                              </strong>
+                            </div>
+                          </div>
+                        );
+                      }),
+                    )}
+                  </div>
+                  <div className="score-actions">
+                    <Button
+                      variant="outline"
+                      onClick={() => saveScores(false)}
+                      disabled={busy}
+                    >
+                      <Save /> Save scores
+                    </Button>
+                    <Button onClick={() => saveScores(true)} disabled={busy}>
+                      Finalize round
+                    </Button>
+                  </div>
+                </>
+              )}
+            </section>
+          </TabsContent>
+          <TabsContent value="history">
+            <div className="two-column history-layout">
+              <section className="panel">
+                <div className="panel-head">
+                  <div>
+                    <div className="eyebrow">SEASON RECORD</div>
+                    <h2>Round history</h2>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setNewSeasonName("");
+                      setNewSeasonOpen(true);
+                    }}
+                  >
+                    <Plus /> New season
+                  </Button>
+                </div>
+                {seasonRounds.length === 0 ? (
+                  <div className="empty">
+                    <CalendarDays size={36} />
+                    <h3>No rounds yet</h3>
+                    <p>
+                      Your pairings and results will appear here after you
+                      create a round.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="round-history">
+                    {[...seasonRounds]
+                      .sort((a, b) => b.date.localeCompare(a.date))
+                      .map((r) => (
+                        <button
+                          key={r.id}
+                          onClick={() => {
+                            setRoundId(r.id);
+                            setTab("round");
+                          }}
+                        >
+                          <span>
+                            <strong>{prettyDate(r.date)}</strong>
+                            <small>
+                              {r.attendees.length} players · {r.groups.length}{" "}
+                              groups
+                            </small>
+                          </span>
+                          <span className={`status ${r.status}`}>
+                            {r.status}
+                          </span>
+                          <ChevronRight size={17} />
+                        </button>
+                      ))}
+                  </div>
+                )}
+                {completed.length > 0 && (
+                  <div className="results">
+                    <h3>Latest results</h3>
+                    {[...completed]
+                      .sort((a, b) => b.date.localeCompare(a.date))
+                      .slice(0, 3)
+                      .map((r) => (
+                        <div key={r.id}>
+                          <strong>{prettyDate(r.date)}</strong>
+                          <div className="results-list">
+                            {r.participants
+                              .filter((p) => p.gross !== null)
+                              .sort(
+                                (a, b) =>
+                                  a.gross! -
+                                  a.playingHandicap -
+                                  (b.gross! - b.playingHandicap),
+                              )
+                              .map((p) => (
+                                <span key={p.playerId}>
+                                  {playerMap.get(p.playerId)?.name ??
+                                    "Former player"}{" "}
+                                  <b>
+                                    {p.gross} gross ·{" "}
+                                    {p.gross! - p.playingHandicap} net
+                                  </b>
+                                </span>
+                              ))}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </section>
+              <section className="panel matrix-panel">
+                <div className="eyebrow">ROTATION</div>
+                <h2>Pairing history</h2>
+                <p>Times each pair has played together this season.</p>
+                {players.length < 2 ? (
+                  <div className="inline-empty">
+                    Add two or more players to see the matrix.
+                  </div>
+                ) : (
+                  <div className="matrix-scroll">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th></th>
+                          {players
+                            .filter((p) => p.active)
+                            .map((p) => (
+                              <th key={p.id} title={p.name}>
+                                {p.name.split(" ")[0].slice(0, 3)}
+                              </th>
+                            ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {players
+                          .filter((p) => p.active)
+                          .map((a) => (
+                            <tr key={a.id}>
+                              <th title={a.name}>{a.name}</th>
+                              {players
+                                .filter((p) => p.active)
+                                .map((b) => (
+                                  <td
+                                    className={
+                                      a.id === b.id
+                                        ? "self"
+                                        : pairCount(a.id, b.id) >= 3
+                                          ? "repeat"
+                                          : pairCount(a.id, b.id) === 0
+                                            ? "fresh"
+                                            : ""
+                                    }
+                                    key={b.id}
+                                  >
+                                    {a.id === b.id
+                                      ? "—"
+                                      : pairCount(a.id, b.id)}
+                                  </td>
+                                ))}
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
+            </div>
+          </TabsContent>
+        </Tabs>
+        <footer>
+          Course data:{" "}
+          <a
+            href="https://www.fsga.org/Club/Detail/5eee5d53-b368-4ef3-900f-2e9aebbca985"
+            target="_blank"
+            rel="noreferrer"
+          >
+            FSGA red-tee rating
+          </a>{" "}
+          ·{" "}
+          <a
+            href="https://www.cityofsebastian.org/240/Course-Layout-Pictures"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Sebastian scorecard
+          </a>
+          . Review settings before your first round.
+        </footer>
+      </div>
+      <Dialog
+        open={!!editPlayer}
+        onOpenChange={(v) => !v && setEditPlayer(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editPlayer && players.some((p) => p.id === editPlayer.id)
+                ? "Edit player"
+                : "Add player"}
+            </DialogTitle>
+            <DialogDescription>
+              Handicap Index is used to calculate red-tee course and playing
+              handicaps.
+            </DialogDescription>
+          </DialogHeader>
+          {editPlayer && (
+            <form
+              className="edit-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!league) return;
+                const name = editPlayer.name.trim();
+                if (!name) {
+                  setError("Enter a player name.");
+                  return;
+                }
+                const record = { ...editPlayer, name };
+                const exists = league.players.some((p) => p.id === record.id);
+                void save(
+                  {
+                    ...league,
+                    players: exists
+                      ? league.players.map((p) =>
+                          p.id === record.id ? record : p,
+                        )
+                      : [...league.players, record],
+                  },
+                  exists ? "Player updated" : "Player added",
+                ).then((ok) => {
+                  if (ok) setEditPlayer(null);
+                });
+              }}
+            >
+              <label>
+                Name
+                <Input
+                  required
+                  value={editPlayer.name}
+                  onChange={(e) =>
+                    setEditPlayer({ ...editPlayer, name: e.target.value })
+                  }
+                />
+              </label>
+              <div className="form-pair">
+                <label>
+                  GHIN number
+                  <Input
+                    inputMode="numeric"
+                    value={editPlayer.ghin}
+                    onChange={(e) =>
+                      setEditPlayer({ ...editPlayer, ghin: e.target.value })
+                    }
+                  />
+                </label>
+                <label>
+                  Handicap Index
+                  <Input
+                    type="number"
+                    step="0.1"
+                    min="-10"
+                    max="54"
+                    value={editPlayer.index ?? ""}
+                    onChange={(e) =>
+                      setEditPlayer({
+                        ...editPlayer,
+                        index:
+                          e.target.value === "" ? null : Number(e.target.value),
+                      })
+                    }
+                  />
+                </label>
+              </div>
+              <label>
+                Email <span className="optional">optional</span>
+                <Input
+                  type="email"
+                  value={editPlayer.email}
+                  onChange={(e) =>
+                    setEditPlayer({ ...editPlayer, email: e.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Phone <span className="optional">optional</span>
+                <Input
+                  type="tel"
+                  value={editPlayer.phone}
+                  onChange={(e) =>
+                    setEditPlayer({ ...editPlayer, phone: e.target.value })
+                  }
+                />
+              </label>
+              <label className="mode-toggle">
+                <Checkbox
+                  checked={editPlayer.active}
+                  onCheckedChange={(v) =>
+                    setEditPlayer({ ...editPlayer, active: !!v })
+                  }
+                />{" "}
+                Active player
+              </label>
+              <div className="dialog-actions">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditPlayer(null)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={busy}>
+                  Save player
+                </Button>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={newSeasonOpen} onOpenChange={setNewSeasonOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Start a new season</DialogTitle>
+            <DialogDescription>
+              The roster carries forward. Pairing counts begin again, and prior
+              rounds stay in their seasons.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            className="edit-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const name = newSeasonName.trim();
+              if (!name || league.seasons.includes(name)) {
+                setError("Enter a new season name, such as 2027–28.");
+                return;
+              }
+              void save(
+                { ...league, season: name, seasons: [...league.seasons, name] },
+                "New season started",
+              ).then((ok) => {
+                if (ok) {
+                  setRoundId("");
+                  setNewSeasonOpen(false);
+                  setTab("round");
+                }
+              });
+            }}
+          >
+            <label>
+              Season name
+              <Input
+                required
+                placeholder="2027–28"
+                value={newSeasonName}
+                onChange={(e) => setNewSeasonName(e.target.value)}
+              />
+            </label>
+            <div className="dialog-actions">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setNewSeasonOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={busy}>
+                Start season
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={courseOpen} onOpenChange={setCourseOpen}>
+        <DialogContent className="course-dialog">
+          <DialogHeader>
+            <DialogTitle>Course & handicap settings</DialogTitle>
+            <DialogDescription>
+              Red tees · 18-hole individual net. Check the course card if its
+              allocations have changed.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            className="edit-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (
+                new Set(courseDraft.strokeIndex).size !== 18 ||
+                courseDraft.strokeIndex.some((x) => x < 1 || x > 18)
+              ) {
+                setError(
+                  "Stroke indexes must contain each number from 1 to 18 exactly once.",
+                );
+                return;
+              }
+              void save(
+                { ...league, course: courseDraft },
+                "Course settings updated",
+              ).then((ok) => {
+                if (ok) setCourseOpen(false);
+              });
+            }}
+          >
+            <label>
+              Course name
+              <Input
+                value={courseDraft.name}
+                onChange={(e) =>
+                  setCourseDraft({ ...courseDraft, name: e.target.value })
+                }
+              />
+            </label>
+            <div className="form-pair three">
+              <label>
+                Rating
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={courseDraft.rating}
+                  onChange={(e) =>
+                    setCourseDraft({
+                      ...courseDraft,
+                      rating: Number(e.target.value),
+                    })
+                  }
+                />
+              </label>
+              <label>
+                Slope
+                <Input
+                  type="number"
+                  min="55"
+                  max="155"
+                  value={courseDraft.slope}
+                  onChange={(e) =>
+                    setCourseDraft({
+                      ...courseDraft,
+                      slope: Number(e.target.value),
+                    })
+                  }
+                />
+              </label>
+              <label>
+                Allowance %
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={courseDraft.allowance}
+                  onChange={(e) =>
+                    setCourseDraft({
+                      ...courseDraft,
+                      allowance: Number(e.target.value),
+                    })
+                  }
+                />
+              </label>
+            </div>
+            <h3>Hole par and women's stroke index</h3>
+            <div className="course-holes">
+              {Array.from({ length: 18 }, (_, i) => (
+                <div key={i}>
+                  <strong>{i + 1}</strong>
+                  <label>
+                    Par
+                    <input
+                      type="number"
+                      min="3"
+                      max="6"
+                      value={courseDraft.par[i]}
+                      onChange={(e) =>
+                        setCourseDraft({
+                          ...courseDraft,
+                          par: courseDraft.par.map((x, j) =>
+                            j === i ? Number(e.target.value) : x,
+                          ),
+                        })
+                      }
+                    />
+                  </label>
+                  <label>
+                    SI
+                    <input
+                      type="number"
+                      min="1"
+                      max="18"
+                      value={courseDraft.strokeIndex[i]}
+                      onChange={(e) =>
+                        setCourseDraft({
+                          ...courseDraft,
+                          strokeIndex: courseDraft.strokeIndex.map((x, j) =>
+                            j === i ? Number(e.target.value) : x,
+                          ),
+                        })
+                      }
+                    />
+                  </label>
+                </div>
+              ))}
+            </div>
+            <div className="dialog-actions">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setCourseOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={busy}>
+                Save settings
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+      {round?.groups.length ? (
+        <div className="print-only">
+          <div className="print-sheet-title">
+            SEBASTIAN LADIES GOLF LEAGUE · {league.season} ·{" "}
+            {prettyDate(round.date)} · RED TEES
+          </div>
+          <table className="print-pairings">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Group</th>
+                <th>Players</th>
+              </tr>
+            </thead>
+            <tbody>
+              {round.groups.map((g, i) => (
+                <tr key={g.id}>
+                  <td>{timeFor(round.firstTime, round.interval, i)}</td>
+                  <td>{i + 1}</td>
+                  <td>
+                    {g.playerIds
+                      .map((id) => playerMap.get(id)?.name)
+                      .join(" · ")}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {round.groups.map((g, i) => (
+            <div className="print-page" key={g.id}>
+              <Scorecard
+                round={round}
+                groupIndex={i}
+                playerMap={playerMap}
+                league={league}
+              />
+              <Scorecard
+                round={round}
+                groupIndex={i}
+                playerMap={playerMap}
+                league={league}
+              />
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </main>
+  );
 }
 
-function Scorecard({round,groupIndex,playerMap,league}:{round:Round;groupIndex:number;playerMap:Map<string,Player>;league:League}){
- const g=round.groups[groupIndex],course=round.course??league.course;
- return <div className="scorecard"><div className="scorecard-head"><strong>SEBASTIAN LADIES · {prettyDate(round.date)}</strong><span>Group {groupIndex+1} · {timeFor(round.firstTime,round.interval,groupIndex)} · Red tees · Net</span></div>{round.instructions&&<div className="scorecard-instructions"><strong>EVENT:</strong> {round.instructions}</div>}{[0,1].map(n=><table key={n}><thead><tr><th>{n===0?"OUT":"IN"}</th>{Array.from({length:9},(_,i)=><th key={i}>{n*9+i+1}</th>)}<th>{n===0?"OUT":"IN"}</th></tr></thead><tbody><tr><th>Par</th>{course.par.slice(n*9,n*9+9).map((x,i)=><td key={i}>{x}</td>)}<td>{course.par.slice(n*9,n*9+9).reduce((a,b)=>a+b,0)}</td></tr><tr><th>HCP</th>{course.strokeIndex.slice(n*9,n*9+9).map((x,i)=><td key={i}>{x}</td>)}<td>—</td></tr>{g.playerIds.map(id=>{const p=round.participants.find(v=>v.playerId===id);return <tr key={id}><th>{playerMap.get(id)?.name??"Player"} <small>CH {p?.courseHandicap??"—"} · PH {p?.playingHandicap??"—"}</small></th>{course.strokeIndex.slice(n*9,n*9+9).map((si,i)=><td key={i}><span className="dots">{p?"•".repeat(Math.max(0,strokesOnHole(p.playingHandicap,si))):""}</span></td>)}<td></td></tr>})}</tbody></table>)}<div className="card-bottom">Gross _______ &nbsp; Net _______ <span>Strokes shown as dots · gross scores can be entered after play</span></div></div>
+function Scorecard({
+  round,
+  groupIndex,
+  playerMap,
+  league,
+}: {
+  round: Round;
+  groupIndex: number;
+  playerMap: Map<string, Player>;
+  league: League;
+}) {
+  const g = round.groups[groupIndex],
+    course = round.course ?? league.course;
+  const counted = new Set(countingHoles(round));
+  const cardGame = gameType(round);
+  const shade = cardGame === "selected-holes" || cardGame === "stableford";
+  return (
+    <div className="scorecard">
+      <div className="scorecard-head">
+        <strong>SEBASTIAN LADIES · {prettyDate(round.date)}</strong>
+        <span>
+          Group {groupIndex + 1} ·{" "}
+          {timeFor(round.firstTime, round.interval, groupIndex)} ·{" "}
+          {gameLabel(round)}
+        </span>
+      </div>
+      {round.instructions && (
+        <div className="scorecard-instructions">
+          <strong>EVENT:</strong> {round.instructions}
+        </div>
+      )}
+      {[0, 1].map((n) => (
+        <table key={n}>
+          <thead>
+            <tr>
+              <th>{n === 0 ? "OUT" : "IN"}</th>
+              {Array.from({ length: 9 }, (_, i) => (
+                <th
+                  className={
+                    shade && counted.has(n * 9 + i) ? "counting-hole" : ""
+                  }
+                  key={i}
+                >
+                  {n * 9 + i + 1}
+                </th>
+              ))}
+              <th>{n === 0 ? "OUT" : "IN"}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th>Par</th>
+              {course.par.slice(n * 9, n * 9 + 9).map((x, i) => (
+                <td
+                  className={
+                    shade && counted.has(n * 9 + i) ? "counting-hole" : ""
+                  }
+                  key={i}
+                >
+                  {x}
+                </td>
+              ))}
+              <td>
+                {course.par.slice(n * 9, n * 9 + 9).reduce((a, b) => a + b, 0)}
+              </td>
+            </tr>
+            <tr>
+              <th>HCP</th>
+              {course.strokeIndex.slice(n * 9, n * 9 + 9).map((x, i) => (
+                <td
+                  className={
+                    shade && counted.has(n * 9 + i) ? "counting-hole" : ""
+                  }
+                  key={i}
+                >
+                  {x}
+                </td>
+              ))}
+              <td>—</td>
+            </tr>
+            {g.playerIds.map((id) => {
+              const p = round.participants.find((v) => v.playerId === id);
+              return (
+                <tr key={id}>
+                  <th>
+                    {playerMap.get(id)?.name ?? "Player"}{" "}
+                    <small>
+                      CH {p?.courseHandicap ?? "—"} · PH{" "}
+                      {p?.playingHandicap ?? "—"}
+                    </small>
+                  </th>
+                  {course.strokeIndex.slice(n * 9, n * 9 + 9).map((si, i) => (
+                    <td
+                      className={
+                        shade && counted.has(n * 9 + i) ? "counting-hole" : ""
+                      }
+                      key={i}
+                    >
+                      <span className="dots">
+                        {p
+                          ? "•".repeat(
+                              Math.max(0, strokesOnHole(p.playingHandicap, si)),
+                            )
+                          : ""}
+                      </span>
+                    </td>
+                  ))}
+                  <td></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      ))}
+      <div className="card-bottom">
+        Gross _______ &nbsp; Net _______ &nbsp; Points _______{" "}
+        <span>{shade ? "Gray holes count · " : ""}Strokes shown as dots</span>
+      </div>
+    </div>
+  );
 }
