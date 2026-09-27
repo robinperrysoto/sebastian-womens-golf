@@ -29,6 +29,7 @@ import {
   Trophy,
   Table2,
   Save,
+  Trash2,
 } from "lucide-react";
 import {
   initialLeague,
@@ -217,14 +218,13 @@ export default function Home() {
   };
   function newRound() {
     if (!league) return;
-    const existing = seasonRounds.find((r) => r.date === nextTuesday());
-    if (existing) {
-      setRoundId(existing.id);
-      setTab("round");
-      setNotice("Opened the existing Tuesday round");
-      return;
-    }
     const r = initialRound(league.season);
+    const usedDates = new Set(seasonRounds.map((item) => item.date));
+    const candidate = new Date(`${r.date}T12:00:00Z`);
+    while (usedDates.has(candidate.toISOString().slice(0, 10))) {
+      candidate.setUTCDate(candidate.getUTCDate() + 7);
+    }
+    r.date = candidate.toISOString().slice(0, 10);
     r.attendees = league.players.filter((p) => p.active).map((p) => p.id);
     void save(
       { ...league, rounds: [...league.rounds, r] },
@@ -235,6 +235,56 @@ export default function Home() {
         setTab("round");
       }
     });
+  }
+  async function deleteCurrentRound() {
+    if (!league || !round) return;
+    if (
+      !window.confirm(
+        `Delete the event on ${prettyDate(round.date)}? This permanently removes its pairings and scores.`,
+      )
+    )
+      return;
+    const rounds = league.rounds
+      .filter((item) => item.id !== round.id)
+      .map((item) =>
+        item.game?.linkedRoundId === round.id
+          ? { ...item, game: { ...item.game, linkedRoundId: undefined } }
+          : item,
+      );
+    const ok = await save({ ...league, rounds }, "Event deleted");
+    if (ok) {
+      const next = rounds
+        .filter((item) => item.season === league.season)
+        .sort((a, b) => b.date.localeCompare(a.date))[0];
+      setRoundId(next?.id ?? "");
+      setScoreDraft({});
+    }
+  }
+  async function deleteSeasonEvents() {
+    if (!league || account?.role !== "owner" || !seasonRounds.length) return;
+    if (
+      !window.confirm(
+        `Delete all ${seasonRounds.length} events in the ${league.season} season? Players, administrators, course settings, and other seasons will be preserved.`,
+      )
+    )
+      return;
+    const removed = new Set(seasonRounds.map((item) => item.id));
+    const rounds = league.rounds
+      .filter((item) => item.season !== league.season)
+      .map((item) =>
+        item.game?.linkedRoundId && removed.has(item.game.linkedRoundId)
+          ? { ...item, game: { ...item.game, linkedRoundId: undefined } }
+          : item,
+      );
+    const ok = await save(
+      { ...league, rounds },
+      `Deleted ${seasonRounds.length} season events`,
+    );
+    if (ok) {
+      setRoundId("");
+      setScoreDraft({});
+      setTab("round");
+    }
   }
   function generate() {
     if (!league || !round) return;
@@ -608,20 +658,30 @@ export default function Home() {
                     </h2>
                   </div>
                   {round && (
-                    <select
-                      className="round-select"
-                      aria-label="Select round"
-                      value={round.id}
-                      onChange={(e) => setRoundId(e.target.value)}
-                    >
-                      {[...seasonRounds]
-                        .sort((a, b) => b.date.localeCompare(a.date))
-                        .map((r) => (
-                          <option key={r.id} value={r.id}>
-                            {r.date} · {r.status}
-                          </option>
-                        ))}
-                    </select>
+                    <div className="row-actions">
+                      <select
+                        className="round-select"
+                        aria-label="Select round"
+                        value={round.id}
+                        onChange={(e) => setRoundId(e.target.value)}
+                      >
+                        {[...seasonRounds]
+                          .sort((a, b) => b.date.localeCompare(a.date))
+                          .map((r) => (
+                            <option key={r.id} value={r.id}>
+                              {r.date} · {r.status}
+                            </option>
+                          ))}
+                      </select>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={busy}
+                        onClick={() => void deleteCurrentRound()}
+                      >
+                        <Trash2 /> Delete event
+                      </Button>
+                    </div>
                   )}
                 </div>
                 {!round ? (
@@ -1421,15 +1481,26 @@ export default function Home() {
                     <div className="eyebrow">SEASON RECORD</div>
                     <h2>Round history</h2>
                   </div>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setNewSeasonName("");
-                      setNewSeasonOpen(true);
-                    }}
-                  >
-                    <Plus /> New season
-                  </Button>
+                  <div className="row-actions">
+                    {account?.role === "owner" && seasonRounds.length > 0 && (
+                      <Button
+                        variant="ghost"
+                        disabled={busy}
+                        onClick={() => void deleteSeasonEvents()}
+                      >
+                        <Trash2 /> Delete all season events
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setNewSeasonName("");
+                        setNewSeasonOpen(true);
+                      }}
+                    >
+                      <Plus /> New season
+                    </Button>
+                  </div>
                 </div>
                 {seasonRounds.length === 0 ? (
                   <div className="empty">
